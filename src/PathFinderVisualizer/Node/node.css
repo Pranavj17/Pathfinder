@@ -1,0 +1,10 @@
+.startNode {
+    background-color: green;
+}
+
+.finishNode {
+    background-color: red;
+}
+.wall {
+    background-color: grey;
+}
