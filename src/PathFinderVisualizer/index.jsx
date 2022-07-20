@@ -1,18 +1,18 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import Node from './Node';
 
 const getKey = (i, j) => {
-  return `${i}${j}`;
+  return `${i},${j}`;
 };
 const getEdges = (i, j, sizeRow, sizeCol) => {
   const neighbors = [
     // [-1, -1], 
-    [-1, 0],
+    // [-1, 0],
     // [-1, 1], 
-    [0, -1], 
-    [0, 1], 
+    // [0, -1], 
+    // [0, 1], 
     // [1, -1], 
-    [1, 0], 
+    // [1, 0], 
     // [1, 1]
     // [1, 1],
     // [1, 0],
@@ -22,13 +22,17 @@ const getEdges = (i, j, sizeRow, sizeCol) => {
     // [-1, 1],
     // [-1, 0],
     // [-1, -1],
+    [1,0],
+    [0, 1],
+    [-1, 0],
+    [0, -1]
   ];
   const grid = [];
   neighbors.forEach(([x, y]) => {
     const newI = i + x;
     const newJ = j + y;
     if (newI >= 0 && newI < sizeRow && newJ >= 0 && newJ < sizeCol) {
-        grid.push(`${newI}${newJ}`);
+        grid.push(`${newI},${newJ}`);
       }
   });
   return grid;
@@ -70,19 +74,20 @@ const findQuadrant = (finishNode, start) => {
     return [nodes, region];
 }
 const PathFinderVisualizer = () => {
-  const [startNode, setStartNode] = useState('00');
-  const [finishNode, setFinishNode] = useState('99');
+  const [startNode, setStartNode] = useState('0,0');
+  const [finishNode, setFinishNode] = useState('24,24');
   const [wall, setWall] = useState(false);
-  const [wallIds, setWallIds] = useState([])
+  const [wallIds, setWallIds] = useState([]);
+  // ["1,2","2,1","3,3","4,3","5,1","7,2","7,4","5,5","3,5","2,5","2,7","5,7","1,4","1,5","0,6","4,4"]
   const [cond, setCond] = useState(false);
-  const row = 10;
-  const col = 10;
+  const row = 25;
+  const col = 25;
   const nodes = [];
   for (let i =0; i< row; i++) {
     nodes[i] = [];
     for (let j=0; j<col; j++) {
       nodes[i].push({
-        key: `${i}${j}`
+        key: `${i},${j}`
       });
     }
   }
@@ -94,7 +99,6 @@ const PathFinderVisualizer = () => {
       adjacentNodes.get(key).push(...getEdges(i, j, row, col));
     }
   }
-  console.log(adjacentNodes);
   const dfs = (start, visited = new Set()) => {
     visited.add(start);
     const element = document.getElementById(`${start}`);
@@ -138,38 +142,11 @@ const PathFinderVisualizer = () => {
     }
   };
 
-  // const customMethod = (start, visited, count) => {
-  //   const [nodes, region] = findQuadrant(finishNode, start);
-  //   let node = '';
-  //   for (const [i, j] of nodes) {
-  //     const requiredNode = `${+start[0] + i}${+start[1] + j}`;
-  //     const neighborNode = adjacentNodes.get(start).find((d) => { return d == requiredNode; });
-  //     if (!visited.has(neighborNode)) {
-  //       visited.add(neighborNode);
-  //       node = neighborNode;
-  //       break;
-  //     }
-  //   }
-  //   console.log('node', node);
-  //   const element = document.getElementById(`${start}`);
-  //   if (![startNode, finishNode].includes(start)) {
-  //     element.style.backgroundColor = 'yellow';
-  //   }
-  //   if (node === finishNode) {
-  //     console.log('Found', visited);
-  //     return;
-  //   }
-    
-  //   setTimeout(() => {
-  //     return customMethod(node, visited, count + 1);
-  //   }, count * 15)
-  // }
-
   const findDistance = (current, endNode) => {
-    const [x, y] = [current[0], current[1]];
-    const [x1, y1] = [endNode[0], endNode[1]];
-    const a = x - x1;
-    const b = y - y1;
+    const [x, y] = current.split(',');
+    const [x1, y1] = endNode.split(',');
+    const a = Number(x1) - Number(x);
+    const b = Number(y1) - Number(y);
     const c = Math.sqrt(Math.pow(a, 2) + Math.pow(b, 2));
     return +c.toFixed(2);
   };
@@ -198,9 +175,88 @@ const PathFinderVisualizer = () => {
           return customMethod(node.key, visited, count + 1);
         }
       }
-    }, count * 15);
+      console.log([...visited]);
+      const lastValue = [...visited.values()].pop();
+      visited.delete(lastValue)
+      console.log('aa', [...visited]);
+      return customMethod(lastValue, visited, count + 1);
+    }, count * 10);
   }
 
+  const aStar = (start, visited = new Set(), closedSet = new Set(), count = 0, i = 0) => {
+    // console.log('start', start, 'adjacent', adjacentNodes.get(start), 'closeSet', closedSet, 'visted', visited);
+    const neighborNodes = (adjacentNodes.get(start) || []).reduce((a, v) => {
+      if (!closedSet.has(v) && !wallIds.includes(v)) {
+        a.push({
+          key: v,
+          distance: findDistance(v, finishNode)
+        });
+      }
+      return a;
+    }, []).sort((a, b) => a.distance - b.distance);
+    setTimeout(() => {
+        for (const node of neighborNodes) {
+        const element = document.getElementById(`${node.key}`);
+          if (![startNode, finishNode].includes(node.key)) {
+            element.style.backgroundColor = 'yellow';
+          }
+        if (node.key === finishNode) {
+          return;
+        }
+        if (!visited.has(node.key)) {
+          visited.add(node.key);
+          return aStar(node.key, visited, closedSet, count + 1, i,);
+        }
+      }
+      // console.log('detection', [...visited], 'i', i);
+      const Visit = [...visited.values()];
+      const lastValue = Visit.pop();
+      const lastSecondValue = Visit.pop();
+      console.log('aa', [...visited], start, 'last', lastValue);
+      console.log('neighborNodes', neighborNodes);
+      visited.delete(lastValue);
+      closedSet.add(lastValue);
+      console.log('closeSet', [...closedSet]);
+      const ele = document.getElementById(`${lastValue}`);
+      if (![startNode, finishNode].includes(ele)) {
+        ele.style = {};
+      }
+      return aStar(lastSecondValue, visited, closedSet, count, i + 1, true);
+    }, 0.1 * count);
+  };
+
+  let actionStart = false;
+  const ids = [...wallIds];
+  const handleIds = (id) => {
+    if (ids.indexOf(id) === -1 && ![startNode, finishNode].includes(id)) {
+      ids.push(id);
+    }
+  }
+  const mouseDown = (e) => {
+    if (!wall) {
+      actionStart = true;
+    }
+    console.log('down', actionStart);
+    if (e.target.id) {
+      handleIds(e.target.id);
+    }
+  };
+  const mouseMove = (e) => {
+    if (actionStart) {
+      console.log(actionStart);
+      if (e.target.id) {
+        handleIds(e.target.id);
+      }
+    }
+  };
+  const mouseUp = (e) => {
+    if (actionStart) {
+      actionStart = false;
+      console.log('ids', ids);
+      setWallIds([...(wallIds || []), ...ids]);
+    }
+  };
+  
   return (
     <>
       <input id="toggle" type="checkbox" value="toggle" onChange={() => setWall(true)} />
@@ -211,7 +267,12 @@ const PathFinderVisualizer = () => {
           <div key={rowKey} className='row'>
             {row.map(({ key }) => {
               return (
-                <div role="presentation" onClick={() => {
+                <div
+                  onMouseDown={mouseDown}
+                  onMouseOver={mouseMove}
+                  onMouseUp={mouseUp}
+                  role="presentation"
+                  onClick={() => {
                   if (!wall) {
                     if (!cond) {
                       setStartNode(key);
@@ -275,6 +336,17 @@ const PathFinderVisualizer = () => {
         customMethod(startNode, visited, 0)
       }}>
         customMethod
+      </button>
+      <button type="button" onClick={() => {
+        const allElements = document.querySelectorAll('[data-box]');
+        [...allElements].forEach((ele) => {
+          if (![startNode, finishNode].includes(ele.id)) {
+            ele.style = {};
+          }
+        });
+        aStar(startNode)
+      }}>
+        aStar
       </button>
     </>
   )
